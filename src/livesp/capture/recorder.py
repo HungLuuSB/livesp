@@ -140,12 +140,16 @@ class StartLimiter:
 
 
 async def close_client(client) -> None:
-    """Đóng websocket và phiên HTTP. Không dùng client.close(): nó gọi run_until_complete trong vòng lặp đang chạy."""
-    with contextlib.suppress(Exception):
+    """Đóng websocket và phiên HTTP. Không dùng client.close(): nó gọi run_until_complete trong vòng lặp đang chạy.
+
+    Bắt cả CancelledError: khi service dừng, disconnect() chờ task websocket vừa bị hủy và ném lại CancelledError;
+    hàm này chỉ chạy trong finally, CancelledError gốc vẫn tiếp tục lan ra sau đó.
+    """
+    with contextlib.suppress(Exception, asyncio.CancelledError):
         await client.disconnect()
     web = getattr(client, "web", None)
     if web is not None:
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(Exception, asyncio.CancelledError):
             await web.close()
 
 
@@ -323,9 +327,9 @@ class ChannelRecorder:
                 reason = "live_end" if self.live_ended else "ws_closed"
             return reason, True
         finally:
-            await close_client(client)
-            if connected:
+            if connected:  # ghi TRƯỚC khi đóng client: việc đóng có thể bị gián đoạn khi service dừng
                 self.meta("disconnect", reason=reason)
+            await close_client(client)
 
     async def _sleep(self, seconds: float, deadline: float | None) -> None:
         if deadline is not None:
@@ -342,6 +346,7 @@ class ChannelRecorder:
             return deadline is not None and time.time() >= deadline
 
         self.meta("capture_start", was_offline_before=self.was_offline_before)
+        stop_reason = "error"
         try:
             while not self.live_ended and not past_deadline():
                 attempt += 1
@@ -352,6 +357,7 @@ class ChannelRecorder:
                 if live is False:
                     offline_since = offline_since or time.time()
                     if time.time() - offline_since > grace:
+                        stop_reason = "offline_grace"
                         break
                 else:
                     offline_since = None
@@ -359,9 +365,17 @@ class ChannelRecorder:
                     backoff = 5.0
                 await self._sleep(backoff + random.uniform(0, 3), deadline)
                 backoff = min(backoff * 2, 60.0)
+            if self.live_ended:
+                stop_reason = "live_end"
+            elif stop_reason != "offline_grace":
+                stop_reason = "deadline"
+        except asyncio.CancelledError:
+            stop_reason = "service_stop"  # systemctl stop/restart, Ctrl-C
+            raise
         finally:
-            self.meta("capture_stop", live_ended=self.live_ended, n_written=self.writer.n_written + 1,
-                      n_duplicates=self.n_duplicates, attempts=attempt)
+            # reason: live_end | offline_grace | deadline | service_stop | error
+            self.meta("capture_stop", reason=stop_reason, live_ended=self.live_ended,
+                      n_written=self.writer.n_written + 1, n_duplicates=self.n_duplicates, attempts=attempt)
             self.writer.close()
 
 
@@ -389,7 +403,10 @@ def main() -> None:
     load_dotenv()
     configure_sign_key()
     rec = ChannelRecorder(a.channel, load_yaml(a.config), was_offline_before=False)
-    asyncio.run(rec.record(max_minutes=a.minutes))
+    try:
+        asyncio.run(rec.record(max_minutes=a.minutes))
+    except KeyboardInterrupt:
+        log.info("Đã dừng (Ctrl-C); capture_stop đã ghi")
     print(f"Đã ghi {rec.writer.n_written} dòng ({rec.n_duplicates} trùng bỏ qua), session_hint={rec.session_hint}")
 
 

@@ -249,7 +249,10 @@ def main() -> None:
     log.info("Theo dõi %d kênh, tối đa %d kết nối đồng thời, %s phiên/ngày, giãn cách %ss",
              len(chans), cfg.get("max_concurrent", 8), cfg.get("max_sessions_per_day", "∞"),
              cfg.get("start_spacing_seconds", 30))
-    asyncio.run(Scheduler(cfg).run(chans))
+    try:
+        asyncio.run(Scheduler(cfg).run(chans))
+    except KeyboardInterrupt:  # systemd KillSignal=SIGINT: dừng êm, không in traceback
+        log.info("Đã dừng êm (SIGINT)")
 
 
 if __name__ == "__main__":

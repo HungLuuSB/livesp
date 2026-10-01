@@ -263,6 +263,7 @@ class TestRecordLoop(RecorderTestBase):
         self.assertEqual(self.metas(rows), ["capture_start", "connect", "disconnect", "capture_stop"])
         disc = [r for r in rows if r.get("meta", {}).get("event") == "disconnect"][0]
         self.assertEqual(disc["meta"]["reason"], "deadline")
+        self.assertEqual(rows[-1]["meta"]["reason"], "deadline")
 
     def test_offline_stops_after_grace(self):
         from TikTokLive.client.errors import UserOfflineError
@@ -272,6 +273,37 @@ class TestRecordLoop(RecorderTestBase):
         asyncio.run(rec.record(max_minutes=1))
         rows = read_jsonl(self.root)
         self.assertEqual(self.metas(rows), ["capture_start", "connect_failed", "capture_stop"])
+        self.assertEqual(rows[-1]["meta"]["reason"], "offline_grace")
+
+    def test_service_stop_still_writes_disconnect(self):
+        """Tái hiện lỗi 01/10: systemctl restart giữa phiên -> thiếu _meta disconnect."""
+
+        class ReraisingClient(FakeClient):
+            async def disconnect(self):
+                if self.task and not self.task.done():
+                    self.task.cancel()
+                    await self.task  # như thư viện thật: ném lại CancelledError
+
+        rec = self.make(client_factory=lambda ch: ReraisingClient(forever=True))
+
+        async def run_then_stop():
+            t = asyncio.create_task(rec.record())
+            await asyncio.sleep(0.05)
+            t.cancel()  # giống SIGINT từ systemd
+            with contextlib.suppress(asyncio.CancelledError):
+                await t
+
+        asyncio.run(run_then_stop())
+        rows = read_jsonl(self.root)
+        self.assertEqual(self.metas(rows), ["capture_start", "connect", "disconnect", "capture_stop"])
+        stop = rows[-1]["meta"]
+        self.assertEqual(stop["reason"], "service_stop")
+        self.assertFalse(stop["live_ended"])
+
+    def test_capture_stop_reasons(self):
+        rec = self.make(client_factory=lambda ch: FakeClient([LiveEndEvent(common=_common(9))]))
+        asyncio.run(rec.record(max_minutes=1))
+        self.assertEqual(read_jsonl(self.root)[-1]["meta"]["reason"], "live_end")
 
     def test_every_connect_waits_for_limiter(self):
         from TikTokLive.client.errors import UserOfflineError
