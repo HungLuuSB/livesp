@@ -2,10 +2,12 @@
 #   mkdir -p ~/.config/systemd/user && cp scripts/wsl/livesp-capture.service ~/.config/systemd/user/
 #   systemctl --user daemon-reload && systemctl --user enable --now livesp-capture
 #   sudo loginctl enable-linger $USER        # chạy cả khi không có phiên đăng nhập
-# Xem log: journalctl --user -u livesp-capture -f
+# Xem log: journalctl --user -u livesp-capture -f      Tình trạng: python scripts/capture_status.py
+# KHÔNG chạy song song với `make capture` trong tmux (mỗi kênh sẽ bị ghi hai lần).
 # Sửa đường dẫn nếu dự án không nằm ở ~/projects/livesp
 [Unit]
 Description=LiveSP capture scheduler
+Wants=network-online.target
 After=network-online.target
 
 [Service]
@@ -15,6 +17,10 @@ ExecStart=%h/projects/livesp/.venv/bin/python -m livesp.capture.scheduler --conf
 Restart=always
 RestartSec=30
 Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=%h/projects/livesp/src
+# dừng êm: SIGINT để recorder ghi capture_stop và đóng file
+KillSignal=SIGINT
+TimeoutStopSec=30
 
 [Install]
 WantedBy=default.target

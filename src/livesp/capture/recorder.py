@@ -274,7 +274,7 @@ class ChannelRecorder:
                 reason = "start_timeout"
             except Exception as e:  # noqa: BLE001
                 reason = f"start_error:{type(e).__name__}"
-                log.warning("%s không nối được: %s", self.channel, e)
+                log.warning("%s không nối được: %s %s", self.channel, type(e).__name__, e)
             if reason != "cancelled":
                 self.meta("connect_failed", attempt=attempt, reason=reason)
                 return reason, False
