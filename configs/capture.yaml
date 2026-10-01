@@ -6,6 +6,15 @@ max_concurrent: 8            # số kết nối đồng thời; tăng dần khi 
 offline_grace_minutes: 15    # offline quá mốc này thì coi là hết phiên
 store_raw_types: [other]     # ghi payload đã làm sạch cho các sự kiện lạ (để tìm tin hệ thống/mua hàng)
 
+sampling_frame:              # khung 20 ô cho configs/channels.csv (Task 3 kiểm tra theo đây)
+  category_groups: [thoi_trang, my_pham, me_be, gia_dung, thuc_pham]
+  follower_tiers:            # tầng cố định theo followers lúc chọn kênh; cận dưới tính vào tầng
+    lt100k: [0, 100000]
+    100k_500k: [100000, 500000]
+    500k_1m: [500000, 1000000]
+    gt1m: [1000000, null]
+  channels_per_cell: [8, 10]
+
 session:
   gap_minutes: 15            # dự phòng khi thiếu session_hint (dữ liệu cũ của khóa luận)
 
