@@ -2,6 +2,8 @@
 #   mkdir -p ~/.config/systemd/user && cp scripts/wsl/livesp-capture.service ~/.config/systemd/user/
 #   systemctl --user daemon-reload && systemctl --user enable --now livesp-capture
 #   sudo loginctl enable-linger $USER        # chạy cả khi không có phiên đăng nhập
+# WSL vẫn tự tắt khi không còn cửa sổ nào mở (đã kiểm chứng 01/10/2026, WSL 3.0.1) -> cài thêm phía Windows:
+#   powershell -ExecutionPolicy Bypass -File scripts\wsl\install_keepalive.ps1
 # Xem log: journalctl --user -u livesp-capture -f      Tình trạng: python scripts/capture_status.py
 # KHÔNG chạy song song với `make capture` trong tmux (mỗi kênh sẽ bị ghi hai lần).
 # Sửa đường dẫn nếu dự án không nằm ở ~/projects/livesp
