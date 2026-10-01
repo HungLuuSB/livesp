@@ -167,7 +167,9 @@ class Scheduler:
         async with self.sem:
             self.active[ch] = time.time()
             from_start = self.seen_offline.get(ch, False)
-            log.info("BẮT ĐẦU ghi %s (từ đầu phiên: %s, còn %s phiên hôm nay)", ch, from_start, self.quota.remaining())
+            left = self.quota.remaining()
+            log.info("BẮT ĐẦU ghi %s (từ đầu phiên: %s, %s)", ch, from_start,
+                     "không giới hạn phiên" if left is None else f"còn {left} phiên hôm nay")
             rec = None
             try:
                 rec = ChannelRecorder(ch, self.cfg, from_start, start_limiter=self.limiter)
@@ -247,7 +249,7 @@ def main() -> None:
                     incident["downtime_min"], len(incident["unclosed_sessions"]), raw / "_incidents.jsonl")
     chans = [r["channel"].strip().lstrip("@") for r in read_channels(cfg["channels_csv"])]
     log.info("Theo dõi %d kênh, tối đa %d kết nối đồng thời, %s phiên/ngày, giãn cách %ss",
-             len(chans), cfg.get("max_concurrent", 8), cfg.get("max_sessions_per_day", "∞"),
+             len(chans), cfg.get("max_concurrent", 8), cfg.get("max_sessions_per_day") or "∞",
              cfg.get("start_spacing_seconds", 30))
     try:
         asyncio.run(Scheduler(cfg).run(chans))
