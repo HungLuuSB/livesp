@@ -97,6 +97,8 @@ def session_table(ev: pd.DataFrame, criteria: dict | None = None) -> pd.DataFram
         comments = body[body["type"] == "comment"]
         viewers = pd.to_numeric(body.loc[body["type"] == "viewer", "total"], errors="coerce").dropna()
         from_start = any(isinstance(m, dict) and m.get("was_offline_before") for m in meta["meta"])
+        # thiếu capture_stop = recorder bị tắt đột ngột (mất điện...) -> xem data/raw/_incidents.jsonl
+        ended_clean = any(isinstance(m, dict) and m.get("event") == "capture_stop" for m in meta["meta"])
         disc = _disconnected_seconds(meta)
         out.append({
             "session_id": sid,
@@ -109,6 +111,7 @@ def session_table(ev: pd.DataFrame, criteria: dict | None = None) -> pd.DataFram
             "peak_viewers": float(viewers.max()) if len(viewers) else np.nan,
             "mean_viewers": float(viewers.mean()) if len(viewers) else np.nan,
             "captured_from_start": bool(from_start),
+            "ended_clean": bool(ended_clean),
             "disconnected_share": round(disc / max(dur_min * 60, 1), 4),
         })
     st = pd.DataFrame(out)

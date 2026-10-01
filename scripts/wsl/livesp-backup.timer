@@ -1,0 +1,11 @@
+[Unit]
+Description=LiveSP backup every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnCalendar=*:0/15
+# máy tắt lúc tới giờ -> chạy bù ngay khi bật lại
+Persistent=true
+
+[Install]
+WantedBy=timers.target

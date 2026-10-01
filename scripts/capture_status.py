@@ -34,6 +34,31 @@ def read_heartbeat(raw_dir: Path) -> dict | None:
         return None
 
 
+def read_json(path: Path) -> dict | None:
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def incidents_today(raw_dir: Path, now: datetime) -> list[dict]:
+    """Các lần tắt đột ngột được phát hiện hôm nay (giờ VN), từ data/raw/_incidents.jsonl."""
+    start_ms, end_ms = local_day_bounds(now)
+    out = []
+    try:
+        with open(Path(raw_dir) / "_incidents.jsonl", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if start_ms <= int(r.get("detected_at", 0)) < end_ms:
+                    out.append(r)
+    except OSError:
+        pass
+    return out
+
+
 def heartbeat_age_s(hb: dict | None, now: datetime) -> float | None:
     if not hb or "ts" not in hb:
         return None
@@ -134,8 +159,10 @@ def session_table(df: pd.DataFrame, now: datetime) -> pd.DataFrame:
     return table
 
 
-def render(table: pd.DataFrame, hb: dict | None, now: datetime, stale_min: float) -> tuple[str, bool]:
-    """(văn bản, có cảnh báo hay không)."""
+def render(table: pd.DataFrame, hb: dict | None, now: datetime, stale_min: float,
+           backup: dict | None = None, incidents: list[dict] | None = None,
+           backup_stale_min: float = 60) -> tuple[str, bool]:
+    """(văn bản, nhịp tim có cũ hay không). Sao lưu trễ / sự cố chỉ in cảnh báo, không đổi mã thoát."""
     lines = [f"Thu thập hôm nay — {now.astimezone(VN_TZ):%Y-%m-%d %H:%M:%S} (giờ VN)"]
     age = heartbeat_age_s(hb, now)
     stale = age is None or age > stale_min * 60
@@ -147,6 +174,19 @@ def render(table: pd.DataFrame, hb: dict | None, now: datetime, stale_min: float
         lines.append(f"Nhịp tim scheduler: {hb_time} ({age / 60:.1f} phút trước) | đang ghi: {active}")
         if stale:
             lines.append(f"CẢNH BÁO: nhịp tim cũ hơn {stale_min:g} phút — máy/WSL đã ngủ hoặc scheduler đã dừng.")
+    if hb and hb.get("quota") is not None:
+        lines.append(f"Phiên hôm nay: {hb.get('sessions_today', 0)}/{hb['quota']}")
+    if backup is None:
+        lines.append("CẢNH BÁO: chưa có bản sao lưu nào (bash scripts/backup_data.sh).")
+    else:
+        b_age = (now.timestamp() - float(backup["ts"])) / 60
+        lines.append(f"Sao lưu gần nhất: {b_age:.0f} phút trước -> {backup.get('dest')} ({backup.get('size')})")
+        if b_age > backup_stale_min:
+            lines.append(f"CẢNH BÁO: sao lưu trễ hơn {backup_stale_min:g} phút — kiểm tra livesp-backup.timer.")
+    for inc in incidents or []:
+        t = datetime.fromtimestamp(inc["last_heartbeat"] / 1000, VN_TZ).strftime("%H:%M")
+        lines.append(f"SỰ CỐ: tắt đột ngột sau {t}, gián đoạn ~{inc.get('downtime_min')} phút, "
+                     f"{len(inc.get('unclosed_sessions') or [])} phiên chưa đóng.")
     lines.append("")
     lines.append("Chưa có phiên nào hôm nay." if table.empty else table.to_string(index=False))
     return "\n".join(lines), stale
@@ -162,7 +202,8 @@ def main() -> int:
     while True:
         now = datetime.now(timezone.utc)
         text, stale = render(session_table(load_rows(today_files(raw, now)), now), read_heartbeat(raw), now,
-                             a.stale_min)
+                             a.stale_min, backup=read_json(raw / "_last_backup.json"),
+                             incidents=incidents_today(raw, now))
         if a.watch:
             print("\033[2J\033[H", end="")
         print(text, flush=True)

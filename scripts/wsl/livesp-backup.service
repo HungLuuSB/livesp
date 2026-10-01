@@ -1,0 +1,12 @@
+# Sao lưu data/ sang D: (xem scripts/backup_data.sh). Chạy bởi livesp-backup.timer. Cài:
+#   cp scripts/wsl/livesp-backup.service scripts/wsl/livesp-backup.timer ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now livesp-backup.timer
+# Xem lần chạy gần nhất: journalctl --user -u livesp-backup -n 5
+[Unit]
+Description=LiveSP backup data/ to another physical disk
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash %h/projects/livesp/scripts/backup_data.sh
+Nice=10
+IOSchedulingClass=idle

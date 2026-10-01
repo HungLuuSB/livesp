@@ -171,7 +171,8 @@ class ChannelRecorder:
         self.channel_hash = hash_id(self.channel, self.salt)
         self.was_offline_before = was_offline_before
         self.session_hint = f"{self.channel}_{datetime.now(timezone.utc):%Y%m%dT%H%M}"
-        self.writer = JsonlWriter(cfg.get("raw_dir", "data/raw"), self.channel, self.session_hint)
+        self.writer = JsonlWriter(cfg.get("raw_dir", "data/raw"), self.channel, self.session_hint,
+                                  fsync_every_s=cfg.get("fsync_every_s", 2.0))
         self.store_raw_types = set(cfg.get("store_raw_types", ["other"]))
         self.client_factory = client_factory
         self.start_limiter = start_limiter

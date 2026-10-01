@@ -89,14 +89,36 @@ class TestStatus(unittest.TestCase):
         self.assertEqual(t.iloc[1]["trạng thái"], "đã dừng")
 
     def test_heartbeat_warning(self):
+        fresh_backup = {"ts": NOW.timestamp() - 600, "dest": "/mnt/d/x", "size": "1M"}
         (self.raw / "_heartbeat.json").write_text(json.dumps({"ts": NOW.timestamp() - 400, "active": ["kenh_a"]}))
-        text, stale = cs.render(cs.session_table(cs.load_rows([]), NOW), cs.read_heartbeat(self.raw), NOW, 5)
+        text, stale = cs.render(cs.session_table(cs.load_rows([]), NOW), cs.read_heartbeat(self.raw), NOW, 5,
+                                backup=fresh_backup)
         self.assertTrue(stale)
         self.assertIn("CẢNH BÁO", text)
         (self.raw / "_heartbeat.json").write_text(json.dumps({"ts": NOW.timestamp() - 60, "active": []}))
-        text, stale = cs.render(cs.session_table(cs.load_rows([]), NOW), cs.read_heartbeat(self.raw), NOW, 5)
+        text, stale = cs.render(cs.session_table(cs.load_rows([]), NOW), cs.read_heartbeat(self.raw), NOW, 5,
+                                backup=fresh_backup)
         self.assertFalse(stale)
         self.assertNotIn("CẢNH BÁO", text)
+
+    def test_backup_and_incident_warnings(self):
+        hb = {"ts": NOW.timestamp() - 30, "active": [], "sessions_today": 3, "quota": 15}
+        empty = cs.session_table(cs.load_rows([]), NOW)
+        text, stale = cs.render(empty, hb, NOW, 5, backup=None)
+        self.assertFalse(stale)  # sao lưu không đổi mã thoát
+        self.assertIn("chưa có bản sao lưu", text)
+        self.assertIn("Phiên hôm nay: 3/15", text)
+        text, _ = cs.render(empty, hb, NOW, 5, backup={"ts": NOW.timestamp() - 7200, "dest": "d", "size": "1M"})
+        self.assertIn("sao lưu trễ", text)
+        with open(self.raw / "_incidents.jsonl", "w", encoding="utf-8") as f:
+            f.write(json.dumps({"detected_at": ms(2), "last_heartbeat": ms(1, 30), "downtime_min": 25.0,
+                                "unclosed_sessions": ["a", "b"]}) + "\n")
+            f.write(json.dumps({"detected_at": ms(2, d="2026-09-29"), "last_heartbeat": 0}) + "\n")
+            f.write('{"detected_at": 17')  # dòng cắt dở
+        inc = cs.incidents_today(self.raw, NOW)
+        self.assertEqual(len(inc), 1)
+        text, _ = cs.render(empty, hb, NOW, 5, backup=None, incidents=inc)
+        self.assertIn("SỰ CỐ: tắt đột ngột sau 08:30", text)
 
     def test_missing_heartbeat_is_stale(self):
         _, stale = cs.render(cs.session_table(cs.load_rows([]), NOW), cs.read_heartbeat(self.raw), NOW, 5)
