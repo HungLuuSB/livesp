@@ -116,6 +116,29 @@ def _known_methods() -> set[str]:
     return set(EVENT_MAPPINGS)
 
 
+class StartLimiter:
+    """Giãn cách các lần mở kết nối (phiên mới HOẶC nối lại) trên toàn bộ scheduler, chống rate limit
+    của TikTok và dịch vụ ký: hai lần start() cách nhau ít nhất min_interval_s + U(0, jitter_s) giây."""
+
+    def __init__(self, min_interval_s: float, jitter_s: float = 0.0,
+                 clock: Callable[[], float] = time.monotonic, sleep: Callable = asyncio.sleep):
+        self.min_interval_s, self.jitter_s = float(min_interval_s), float(jitter_s)
+        self.clock, self.sleep = clock, sleep
+        self._next = float("-inf")
+        self._lock: asyncio.Lock | None = None
+
+    async def wait(self) -> float:
+        """Chờ tới lượt; trả số giây đã chờ."""
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        async with self._lock:
+            waited = max(self._next - self.clock(), 0.0)
+            if waited > 0:
+                await self.sleep(waited)
+            self._next = self.clock() + self.min_interval_s + random.uniform(0, self.jitter_s)
+            return waited
+
+
 async def close_client(client) -> None:
     """Đóng websocket và phiên HTTP. Không dùng client.close(): nó gọi run_until_complete trong vòng lặp đang chạy."""
     with contextlib.suppress(Exception):
@@ -141,7 +164,7 @@ async def check_live(channel: str, client_factory: Callable = _default_client,
 
 class ChannelRecorder:
     def __init__(self, channel: str, cfg: dict, was_offline_before: bool,
-                 client_factory: Callable = _default_client):
+                 client_factory: Callable = _default_client, start_limiter: StartLimiter | None = None):
         self.channel = channel.strip().lstrip("@")
         self.cfg = cfg
         self.salt = get_salt()
@@ -151,6 +174,8 @@ class ChannelRecorder:
         self.writer = JsonlWriter(cfg.get("raw_dir", "data/raw"), self.channel, self.session_hint)
         self.store_raw_types = set(cfg.get("store_raw_types", ["other"]))
         self.client_factory = client_factory
+        self.start_limiter = start_limiter
+        self.n_connects = 0
         self.live_ended = False
         self.n_duplicates = 0
         self._seen: OrderedDict = OrderedDict()
@@ -266,6 +291,8 @@ class ChannelRecorder:
             client.add_listener(c, self.on_event)
         connected, reason = False, "cancelled"
         try:
+            if self.start_limiter is not None:
+                await self.start_limiter.wait()
             try:
                 task = await asyncio.wait_for(client.start(fetch_live_check=True), START_TIMEOUT_S)
             except UserOfflineError:
@@ -279,6 +306,7 @@ class ChannelRecorder:
                 self.meta("connect_failed", attempt=attempt, reason=reason)
                 return reason, False
             connected = True
+            self.n_connects += 1
             self.meta("connect", attempt=attempt, was_offline_before=self.was_offline_before,
                       room_id=getattr(client, "room_id", None))
             timeout = None if deadline is None else max(deadline - time.time(), 0)

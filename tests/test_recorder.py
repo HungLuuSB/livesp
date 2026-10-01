@@ -273,6 +273,27 @@ class TestRecordLoop(RecorderTestBase):
         rows = read_jsonl(self.root)
         self.assertEqual(self.metas(rows), ["capture_start", "connect_failed", "capture_stop"])
 
+    def test_every_connect_waits_for_limiter(self):
+        from TikTokLive.client.errors import UserOfflineError
+
+        class CountingLimiter:
+            n = 0
+
+            async def wait(self):
+                CountingLimiter.n += 1
+                return 0.0
+
+        rec = self.make(client_factory=lambda ch: FakeClient(start_error=UserOfflineError()),
+                        cfg={"offline_grace_minutes": 0.0001}, start_limiter=CountingLimiter())
+        with mock.patch.object(recorder.random, "uniform", return_value=0), \
+                mock.patch.object(recorder.ChannelRecorder, "_sleep", new=lambda self, s, d: asyncio.sleep(0)):
+            asyncio.run(rec.record(max_minutes=1))
+        rows = read_jsonl(self.root)
+        n_attempts = sum(1 for r in rows if r.get("meta", {}).get("event") == "connect_failed")
+        self.assertGreaterEqual(n_attempts, 1)
+        self.assertEqual(CountingLimiter.n, n_attempts)
+        self.assertEqual(rec.n_connects, 0)
+
     def test_check_live_none_on_error(self):
         class Boom(FakeClient):
             async def is_live(self):

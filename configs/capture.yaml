@@ -4,6 +4,9 @@ raw_dir: data/raw
 poll_seconds: 120            # chu kỳ kiểm tra kênh có live không (cũng là sai số tối đa của "ghi từ đầu phiên")
 max_concurrent: 8            # số kết nối đồng thời; tăng dần khi đã chắc máy + dịch vụ ký chịu được
 offline_grace_minutes: 15    # offline quá mốc này thì coi là hết phiên
+max_sessions_per_day: 15     # số phiên MỚI mỗi ngày (giờ VN); phiên không nối được thì hoàn lại; null = không giới hạn
+start_spacing_seconds: 30    # giãn cách tối thiểu giữa 2 lần mở kết nối (phiên mới HOẶC nối lại), chống rate limit
+start_jitter_seconds: 10     # cộng thêm ngẫu nhiên 0..N giây
 store_raw_types: [other]     # ghi payload đã làm sạch cho các sự kiện lạ (để tìm tin hệ thống/mua hàng)
 
 sampling_frame:              # khung 20 ô cho configs/channels.csv (Task 3 kiểm tra theo đây)
