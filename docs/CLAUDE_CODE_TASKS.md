@@ -14,7 +14,7 @@ Thứ tự đã sắp theo lịch: Task 1–4 phải xong TRƯỚC 10.10.
   Sửa src/livesp/capture/recorder.py cho khớp, tham khảo legacy/capture_thesis.py. Viết test cho handle() bằng đối tượng
   giả." Sau đó: `make capture-one CHANNEL=<kênh đang live>`. Xong khi: file JSONL có comment/like/viewer, user đã băm,
   text đã che SĐT, có dòng _meta connect/disconnect.
-- [ ] **Task 2 — Chạy thử bộ lập lịch.** Tạo configs/channels.csv với 3 kênh. Chạy `make capture` trong tmux 2 giờ.
+- [x] **Task 2 — Chạy thử bộ lập lịch.** Tạo configs/channels.csv với 3 kênh. Chạy `make capture` trong tmux 2 giờ.
   Prompt: "Viết scripts/capture_status.py: đọc data/raw/_heartbeat.json và các file JSONL hôm nay, in bảng kênh | phiên |
   số sự kiện | phút mất kết nối | nhịp tim cuối. Cảnh báo nếu nhịp tim cũ hơn 5 phút." Sau đó cài systemd service
   (scripts/wsl/livesp-capture.service). Xong khi: tắt/mở mạng thử mà recorder tự nối lại.
