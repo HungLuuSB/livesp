@@ -12,14 +12,19 @@ param(
 )
 
 $wsl = Join-Path $env:SystemRoot "System32\wsl.exe"
-$action = New-ScheduledTaskAction -Execute "powershell.exe" `
-    -Argument "-NoProfile -WindowStyle Hidden -Command `"& '$wsl' -d $Distro --exec sleep infinity`""
+$conhost = Join-Path $env:SystemRoot "System32\conhost.exe"
+# conhost --headless: console không có cửa sổ. (powershell -WindowStyle Hidden KHÔNG ẩn được khi Windows Terminal
+# là terminal mặc định của Windows 11 -> để lại một cửa sổ trống.)
+$action = New-ScheduledTaskAction -Execute $conhost -Argument "--headless `"$wsl`" -d $Distro --exec sleep infinity"
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
     -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
     -MultipleInstances IgnoreNew
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
 
+if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
+    Stop-ScheduledTask -TaskName $TaskName   # dừng bản cũ (và cửa sổ của nó) trước khi cài lại
+}
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings `
     -Principal $principal -Description "Keep WSL ($Distro) running for livesp capture" -Force | Out-Null
 Start-ScheduledTask -TaskName $TaskName
