@@ -125,5 +125,44 @@ class TestSchedulerRecord(unittest.TestCase):
         self.assertNotIn("a", s.active)
 
 
+class TestOnlyFromStart(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.recorded = []
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_ticks(self, only_from_start, states):
+        s = scheduler.Scheduler({"raw_dir": self.tmp.name, "only_from_start": only_from_start})
+        it = iter(states)
+
+        async def check(ch):
+            return next(it)
+
+        async def record(ch):
+            self.recorded.append(ch)
+
+        s._check, s._record = check, record
+
+        async def go():
+            return [await s._tick("k") for _ in states]
+
+        return asyncio.run(go())
+
+    def test_mid_session_skipped_then_next_session_recorded(self):
+        # đang live lúc khởi động -> bỏ qua; offline -> live lại -> ghi
+        self.assertEqual(self.run_ticks(True, [True, True, False, True]), [True, True, False, True])
+        self.assertEqual(self.recorded, ["k"])
+
+    def test_disabled_records_mid_session(self):
+        self.run_ticks(False, [True])
+        self.assertEqual(self.recorded, ["k"])
+
+    def test_network_error_is_not_offline(self):
+        self.run_ticks(True, [True, None, True])
+        self.assertEqual(self.recorded, [])
+
+
 if __name__ == "__main__":
     unittest.main()

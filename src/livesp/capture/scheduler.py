@@ -8,6 +8,8 @@
   (để biết kênh offline -> phiên hôm sau mới tính được captured_from_start), chỉ không mở phiên mới.
 - Mọi lần mở kết nối (phiên mới và nối lại) đi qua một StartLimiter chung: cách nhau >= start_spacing_seconds
   (+ ngẫu nhiên tới start_jitter_seconds) để tránh rate limit.
+- only_from_start: chỉ mở phiên khi đã THẤY kênh offline trước đó (phiên ghi từ đầu, đủ điều kiện hợp lệ).
+  Kênh đang live dở lúc scheduler khởi động (sau restart/mất điện) bị bỏ qua, không tốn hạn mức.
 - Mất điện/tắt đột ngột: khi dừng êm (SIGINT/systemctl stop) nhịp tim cuối có "stopped": true. Lúc khởi động,
   nếu nhịp tim cuối KHÔNG có cờ đó -> lần trước tắt đột ngột: ghi một dòng vào data/raw/_incidents.jsonl
   (thời điểm nhịp tim cuối, số phút gián đoạn, các phiên chưa có capture_stop). Không sửa file dữ liệu cũ;
@@ -149,6 +151,8 @@ class Scheduler:
         self.quota = DailyQuota(cfg.get("max_sessions_per_day"), raw / "_quota.json")
         self.limiter = StartLimiter(cfg.get("start_spacing_seconds", 30), cfg.get("start_jitter_seconds", 10))
         self._quota_logged_day: str | None = None
+        self.only_from_start = bool(cfg.get("only_from_start", False))
+        self._skip_logged: set[str] = set()
 
     async def _check(self, ch: str) -> bool | None:
         return await check_live(ch)
@@ -177,24 +181,35 @@ class Scheduler:
                 self.seen_offline[ch] = False
                 log.info("KẾT THÚC ghi %s", ch)
 
+    async def _tick(self, ch: str) -> bool | None:
+        """Một lần kiểm tra kênh; ghi nếu đủ điều kiện. Trả kết quả is_live (None = lỗi mạng)."""
+        live = await self._check(ch)
+        if live is None:
+            return None
+        if not live:
+            self.seen_offline[ch] = True
+            self._skip_logged.discard(ch)
+        elif ch not in self.active:
+            if self.only_from_start and not self.seen_offline.get(ch, False):
+                if ch not in self._skip_logged:  # log một lần mỗi lượt live
+                    log.info("Bỏ qua %s: đang live dở (chưa thấy offline trước đó), chờ phiên sau", ch)
+                    self._skip_logged.add(ch)
+            elif self.sem.locked():
+                log.warning("Hết slot, bỏ lượt %s (tăng max_concurrent nếu máy chịu được)", ch)
+            else:
+                await self._record(ch)
+        return live
+
     async def watch(self, ch: str) -> None:
         poll = self.cfg.get("poll_seconds", 120)
         await asyncio.sleep(random.uniform(0, poll))  # rải đều thời điểm kiểm tra
         err_backoff = poll
         while True:
-            live = await self._check(ch)
-            if live is None:
+            if await self._tick(ch) is None:
                 await asyncio.sleep(err_backoff)
                 err_backoff = min(err_backoff * 2, 1800)
                 continue
             err_backoff = poll
-            if not live:
-                self.seen_offline[ch] = True
-            elif ch not in self.active:
-                if self.sem.locked():
-                    log.warning("Hết slot, bỏ lượt %s (tăng max_concurrent nếu máy chịu được)", ch)
-                else:
-                    await self._record(ch)
             await asyncio.sleep(poll + random.uniform(0, 15))
 
     def write_heartbeat(self, stopped: bool = False) -> None:
