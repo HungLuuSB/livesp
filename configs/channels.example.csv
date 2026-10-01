@@ -1,6 +1,6 @@
-channel,category_group,follower_tier,enabled,note
-ten_kenh_vi_du_1,thoi_trang,lt100k,1,thay bằng unique_id thật (không có @)
-ten_kenh_vi_du_2,my_pham,100k_500k,1,
-ten_kenh_vi_du_3,me_be,500k_1m,1,
-ten_kenh_vi_du_4,do_gia_dung,gt1m,1,
-ten_kenh_vi_du_5,thuc_pham,lt100k,0,enabled=0 để tạm tắt
+channel,category_group,followers,followers_date,follower_tier,enabled,note
+ten_kenh_vi_du_1,thoi_trang,45200,2026-10-01,lt100k,1,unique_id thật (không có @); followers = số TikTok hiển thị lúc chọn kênh
+ten_kenh_vi_du_2,my_pham,230000,2026-10-01,100k_500k,1,follower_tier: lt100k | 100k_500k | 500k_1m | gt1m (>= 1.000.000)
+ten_kenh_vi_du_3,me_be,622900,2026-10-01,500k_1m,1,tầng cố định theo followers lúc chọn; không cập nhật khi kênh tăng follower
+ten_kenh_vi_du_4,gia_dung,1000000,2026-10-01,gt1m,1,
+ten_kenh_vi_du_5,thuc_pham,25500,2026-10-01,lt100k,0,enabled=0 để tạm tắt
