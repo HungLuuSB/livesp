@@ -12,7 +12,9 @@ Quan sát, dữ liệu bảng theo phút, không can thiệp. Dữ liệu thu 01
 
 ## 3. Kế hoạch lấy mẫu
 160–200 kênh theo 5 nhóm ngành × 4 tầng follower, mỗi ô 8–10 kênh.
-Nhóm ngành: thời trang, mỹ phẩm, mẹ & bé, gia dụng, thực phẩm. Tầng follower (số TikTok hiển thị lúc chọn kênh, cố
+Nhóm ngành: thời trang, mỹ phẩm, mẹ & bé, gia dụng, thực phẩm.
+[CẦN CHỐT trước khi nộp: đang thu thêm ngành công nghệ và có thể mở rộng thêm ngành — nếu giữ, cập nhật
+số ngành, số ô và tổng số kênh ở trên.] Tầng follower (số TikTok hiển thị lúc chọn kênh, cố
 định sau đó): < 100 nghìn; 100–500 nghìn; 500 nghìn – 1 triệu; ≥ 1 triệu. Tối thiểu 300 phiên hợp lệ; dừng thu 31/12/2026 hoặc khi đạt 600 phiên.
 Tiêu chí phiên hợp lệ: ghi từ lúc lên sóng; ≥ 30 phút; mất kết nối ≤ 10%; ≥ 150 bình luận người xem sau lọc.
 

@@ -11,7 +11,8 @@ fsync_every_s: 2             # mất điện đột ngột chỉ mất tối đa
 store_raw_types: [other]     # ghi payload đã làm sạch cho các sự kiện lạ (để tìm tin hệ thống/mua hàng)
 
 sampling_frame:              # khung 20 ô cho configs/channels.csv (Task 3 kiểm tra theo đây)
-  category_groups: [thoi_trang, my_pham, me_be, gia_dung, thuc_pham]
+  # 5 ngành gốc + cong_nghe (01/10/2026: đang cân nhắc mở rộng thêm ngành; chốt trước khi nộp OSF)
+  category_groups: [thoi_trang, my_pham, me_be, gia_dung, thuc_pham, cong_nghe]
   follower_tiers:            # tầng cố định theo followers lúc chọn kênh; cận dưới tính vào tầng
     lt100k: [0, 100000]
     100k_500k: [100000, 500000]
