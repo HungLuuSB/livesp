@@ -88,8 +88,8 @@ class TestDailyQuota(unittest.TestCase):
 class FakeRecorder:
     instances = []
 
-    def __init__(self, ch, cfg, from_start, start_limiter=None, connects=1):
-        self.ch, self.n_connects = ch, connects
+    def __init__(self, ch, cfg, from_start, start_limiter=None, batch=None, connects=1):
+        self.ch, self.n_connects, self.batch = ch, connects, batch
         FakeRecorder.instances.append(self)
 
     async def record(self):
@@ -125,6 +125,110 @@ class TestSchedulerRecord(unittest.TestCase):
         self.assertNotIn("a", s.active)
 
 
+class TestHotReload(unittest.TestCase):
+    """Đổi channels.csv khi đang chạy: không cắt phiên đang ghi, không cần khởi động lại."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {privacy.SALT_ENV: "unit-test-salt-0123456789"})
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+        self.tmp.cleanup()
+
+    def make(self, live: set):
+        s = scheduler.Scheduler({"raw_dir": self.tmp.name, "poll_seconds": 0.01, "poll_jitter_seconds": 0,
+                                 "start_spacing_seconds": 0})
+        self.events = []
+        self.release = None
+
+        async def check(ch):
+            return ch in live
+
+        async def record(ch):
+            s.active[ch] = 1
+            self.events.append(("start", ch, (s.info.get(ch) or {}).get("batch")))
+            await self.release.wait()
+            self.events.append(("end", ch))
+            s.active.pop(ch, None)
+
+        s._check, s._record = check, record
+        return s
+
+    def test_add_remove_without_cutting_active_session(self):
+        s = self.make(live={"a"})
+
+        async def go():
+            self.release = asyncio.Event()
+            s.sync_channels({"a": {"batch": "2026-10-01"}, "b": {}})
+            await asyncio.sleep(0.1)
+            self.assertIn(("start", "a", "2026-10-01"), self.events)  # batch đi theo kênh
+            added, removed = s.sync_channels({"c": {"batch": "2026-10-02"}})  # đổi lượt: bỏ a, b; thêm c
+            self.assertEqual((added, removed), (["c"], ["a", "b"]))
+            await asyncio.sleep(0.1)
+            self.assertNotIn(("end", "a"), self.events)  # phiên của a KHÔNG bị cắt
+            self.assertTrue(s.tasks["b"].done())  # b không ghi gì -> thôi theo dõi ngay
+            self.assertFalse(s.tasks["a"].done())
+            self.release.set()  # a tắt live
+            await asyncio.sleep(0.1)
+            self.assertIn(("end", "a"), self.events)
+            self.assertTrue(s.tasks["a"].done())  # sau khi ghi trọn mới thôi theo dõi
+            self.assertFalse(s.tasks["c"].done())
+            for t in s.tasks.values():
+                t.cancel()
+            await asyncio.gather(*s.tasks.values(), return_exceptions=True)
+
+        asyncio.run(go())
+        self.assertEqual(sum(e[0] == "start" and e[1] == "a" for e in self.events), 1)
+
+    def test_readd_while_recording_reuses_watcher(self):
+        s = self.make(live={"a"})
+
+        async def go():
+            self.release = asyncio.Event()
+            s.sync_channels({"a": {}})
+            await asyncio.sleep(0.05)
+            first = s.tasks["a"]
+            s.sync_channels({})
+            s.sync_channels({"a": {}})
+            self.assertIs(s.tasks["a"], first)
+            self.release.set()
+            await asyncio.sleep(0.05)
+            self.assertFalse(first.done())  # vẫn theo dõi vì kênh đã được thêm lại
+            first.cancel()
+            await asyncio.gather(first, return_exceptions=True)
+
+        asyncio.run(go())
+
+    def test_reload_reads_csv_and_keeps_old_list_on_bad_file(self):
+        csv_path = Path(self.tmp.name) / "channels.csv"
+        csv_path.write_text("channel,enabled,batch\nkenh.a,1,b1\nkenh.b,0,b1\n@bad name,1,b1\n", encoding="utf-8")
+        s = self.make(live=set())
+
+        async def go():
+            s.sync_channels({})
+            t = asyncio.get_running_loop().create_task(s.reload_channels(csv_path, 0.01))
+            await asyncio.sleep(0.05)
+            self.assertEqual(s.wanted, {"kenh.a"})  # enabled=0 và tên sai bị bỏ
+            csv_path.write_bytes(b"\xff\xfe\x00 garbage")  # file hỏng / đang ghi dở
+            await asyncio.sleep(0.05)
+            self.assertEqual(s.wanted, {"kenh.a"})
+            t.cancel()
+            for x in [t, *s.tasks.values()]:
+                x.cancel()
+            await asyncio.gather(t, *s.tasks.values(), return_exceptions=True)
+
+        asyncio.run(go())
+
+    def test_heartbeat_rolls_quota_to_new_day(self):
+        s = scheduler.Scheduler({"raw_dir": self.tmp.name, "max_sessions_per_day": 5})
+        s.quota.count, s.quota.day = 28, "2000-01-01"
+        s.write_heartbeat()
+        hb = json.loads((Path(self.tmp.name) / "_heartbeat.json").read_text())
+        self.assertEqual(hb["sessions_today"], 0)
+
+
 class TestOnlyFromStart(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -135,6 +239,7 @@ class TestOnlyFromStart(unittest.TestCase):
 
     def run_ticks(self, only_from_start, states):
         s = scheduler.Scheduler({"raw_dir": self.tmp.name, "only_from_start": only_from_start})
+        s.wanted = {"k"}
         it = iter(states)
 
         async def check(ch):

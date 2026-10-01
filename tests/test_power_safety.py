@@ -83,13 +83,16 @@ class TestEndedCleanFlag(unittest.TestCase):
             return {"session_id": sid, "channel": "k", "ts": ts, "type": typ, "user": "u",
                     "total": None, "meta": {"event": event} if event else None}
 
+        start_b = {**row("s1", 0, "_meta"), "meta": {"event": "capture_start", "batch": "2026-10-02"}}
         ev = pd.DataFrame([
-            row("s1", 0, "_meta", "capture_start"), row("s1", 1000, "comment"), row("s1", 2000, "_meta", "capture_stop"),
+            start_b, row("s1", 1000, "comment"), row("s1", 2000, "_meta", "capture_stop"),
             row("s2", 0, "_meta", "capture_start"), row("s2", 1000, "comment"),
         ])
         st = ingest.session_table(ev).set_index("session_id")
         self.assertTrue(st.loc["s1", "ended_clean"])
         self.assertFalse(st.loc["s2", "ended_clean"])
+        self.assertEqual(st.loc["s1", "batch"], "2026-10-02")
+        self.assertTrue(pd.isna(st.loc["s2", "batch"]))  # phiên cũ không có batch
 
 
 @unittest.skipUnless(shutil.which("rsync") and shutil.which("bash"), "cần bash + rsync")

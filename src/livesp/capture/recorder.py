@@ -168,7 +168,8 @@ async def check_live(channel: str, client_factory: Callable = _default_client,
 
 class ChannelRecorder:
     def __init__(self, channel: str, cfg: dict, was_offline_before: bool,
-                 client_factory: Callable = _default_client, start_limiter: StartLimiter | None = None):
+                 client_factory: Callable = _default_client, start_limiter: StartLimiter | None = None,
+                 batch: str | None = None):
         self.channel = channel.strip().lstrip("@")
         self.cfg = cfg
         self.salt = get_salt()
@@ -180,6 +181,7 @@ class ChannelRecorder:
         self.store_raw_types = set(cfg.get("store_raw_types", ["other"]))
         self.client_factory = client_factory
         self.start_limiter = start_limiter
+        self.batch = batch  # lượt thu (cột batch trong channels.csv), ghi vào capture_start
         self.n_connects = 0
         self.live_ended = False
         self.n_duplicates = 0
@@ -345,7 +347,7 @@ class ChannelRecorder:
         def past_deadline() -> bool:
             return deadline is not None and time.time() >= deadline
 
-        self.meta("capture_start", was_offline_before=self.was_offline_before)
+        self.meta("capture_start", was_offline_before=self.was_offline_before, batch=self.batch)
         stop_reason = "error"
         try:
             while not self.live_ended and not past_deadline():

@@ -99,6 +99,9 @@ def session_table(ev: pd.DataFrame, criteria: dict | None = None) -> pd.DataFram
         from_start = any(isinstance(m, dict) and m.get("was_offline_before") for m in meta["meta"])
         # thiếu capture_stop = recorder bị tắt đột ngột (mất điện...) -> xem data/raw/_incidents.jsonl
         ended_clean = any(isinstance(m, dict) and m.get("event") == "capture_stop" for m in meta["meta"])
+        # lượt thu (cột batch của channels.csv lúc mở phiên); phiên trước 02/10/2026 không có -> None
+        batch = next((m.get("batch") for m in meta["meta"]
+                      if isinstance(m, dict) and m.get("event") == "capture_start" and m.get("batch")), None)
         disc = _disconnected_seconds(meta)
         out.append({
             "session_id": sid,
@@ -112,6 +115,7 @@ def session_table(ev: pd.DataFrame, criteria: dict | None = None) -> pd.DataFram
             "mean_viewers": float(viewers.mean()) if len(viewers) else np.nan,
             "captured_from_start": bool(from_start),
             "ended_clean": bool(ended_clean),
+            "batch": batch,
             "disconnected_share": round(disc / max(dur_min * 60, 1), 4),
         })
     st = pd.DataFrame(out)
