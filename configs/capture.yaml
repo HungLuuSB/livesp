@@ -5,7 +5,9 @@ poll_seconds: 120            # chu kỳ kiểm tra kênh có live không (cũng 
 max_concurrent: 8            # số kết nối đồng thời; tăng dần khi đã chắc máy + dịch vụ ký chịu được
 offline_grace_minutes: 15    # offline quá mốc này thì coi là hết phiên
 max_sessions_per_day: 15     # số phiên MỚI mỗi ngày (giờ VN); phiên không nối được thì hoàn lại; null = không giới hạn
-only_from_start: true        # chỉ ghi phiên đã thấy kênh offline trước đó (ghi từ đầu); bỏ qua kênh đang live dở
+only_from_start: false       # true = chỉ ghi phiên đã thấy kênh offline trước đó (ghi từ đầu), bỏ qua kênh đang live dở.
+                             # 01/10/2026: tắt — shop live liên tục nhiều giờ nên hiếm khi bắt được đầu phiên; ghi mọi
+                             # phiên, cờ was_offline_before vẫn cho biết phiên nào ghi từ đầu (ingest: captured_from_start)
 start_spacing_seconds: 30    # giãn cách tối thiểu giữa 2 lần mở kết nối (phiên mới HOẶC nối lại), chống rate limit
 start_jitter_seconds: 10     # cộng thêm ngẫu nhiên 0..N giây
 fsync_every_s: 2             # mất điện đột ngột chỉ mất tối đa ~2 s dữ liệu cuối mỗi phiên (xem capture/writer.py)
