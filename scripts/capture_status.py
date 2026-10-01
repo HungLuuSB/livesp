@@ -129,7 +129,9 @@ def session_table(df: pd.DataFrame, now: datetime) -> pd.DataFrame:
             "nhịp tim cuối": datetime.fromtimestamp(last_ms / 1000, VN_TZ).strftime("%H:%M:%S"),
             "trạng thái": "đã dừng" if "capture_stop" in events else "đang ghi",
         })
-    return pd.DataFrame(out, columns=COLUMNS)
+    table = pd.DataFrame(out, columns=COLUMNS)
+    table["người xem"] = table["người xem"].astype("Int64")  # số nguyên, ô trống hiện <NA> thay vì 370.0
+    return table
 
 
 def render(table: pd.DataFrame, hb: dict | None, now: datetime, stale_min: float) -> tuple[str, bool]:
