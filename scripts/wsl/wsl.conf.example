@@ -1,0 +1,3 @@
+# Đặt vào /etc/wsl.conf TRONG Ubuntu (sudo nano /etc/wsl.conf), rồi `wsl --shutdown` từ PowerShell.
+[boot]
+systemd=true

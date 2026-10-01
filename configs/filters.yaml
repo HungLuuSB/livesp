@@ -1,0 +1,16 @@
+# Sàng lọc — ĐÓNG BĂNG file này (thêm "filters.yaml" vào configs/FROZEN) trước khi chạy dữ liệu kiểm định 11–12/2026.
+system_patterns:
+  - '\bđã mua\b'
+  - '\bvừa mua\b'
+  - '\bđang mua\b'
+  - '\bđã săn\b'
+  - '\bvừa săn\b'
+  - '\bđã đặt hàng\b'
+  - '\bđã thêm vào giỏ\b'
+staff_user_hashes: []        # user hash của trợ lý/mod shop phát hiện khi kiểm tay
+rate_bot: {max_msgs: 5, window_s: 10}
+near_dup: {threshold: 0.8, window_s: 60, ngram: 3}
+collective: {min_users: 10, window_s: 120}
+seeding: {min_sessions: 3, early_minutes: 15, praise_share: 0.5, early_share: 0.5}
+praise_patterns: ['\bđẹp\b', '\bxinh\b', '\bngon\b', '\bchất\b', '\buy tín\b', '\btốt\b', '\bxịn\b', '\bủng hộ\b', '\bmê\b', '\bthích\b', '\bdep\b', '\bokk*\b']
+min_viewer_comments: 150

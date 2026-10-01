@@ -1,0 +1,6 @@
+channel,category_group,follower_tier,enabled,note
+ten_kenh_vi_du_1,thoi_trang,lt100k,1,thay bằng unique_id thật (không có @)
+ten_kenh_vi_du_2,my_pham,100k_500k,1,
+ten_kenh_vi_du_3,me_be,500k_1m,1,
+ten_kenh_vi_du_4,do_gia_dung,gt1m,1,
+ten_kenh_vi_du_5,thuc_pham,lt100k,0,enabled=0 để tạm tắt

@@ -1,0 +1,8 @@
+# Đặt nội dung này vào C:\Users\<tên_bạn>\.wslconfig (phía Windows), rồi chạy trong PowerShell:  wsl --shutdown
+# Con số dưới đây cho máy 16 GB RAM / 8 luồng — chỉnh theo máy của bạn.
+[wsl2]
+memory=12GB
+processors=6
+swap=8GB
+# Có các tùy chọn giữ VM chạy khi rảnh (vd vmIdleTimeout) tùy phiên bản Windows/WSL —
+# kiểm tra tài liệu Microsoft cho bản bạn đang dùng trước khi đặt.

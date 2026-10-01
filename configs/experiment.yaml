@@ -1,0 +1,17 @@
+# Thí nghiệm Study 1. Siêu tham số giữ CỐ ĐỊNH giữa các điều kiện tiền xử lý (chỉ đầu vào thay đổi).
+max_len: 64
+models:
+  rules:   {type: rules}
+  tfidf:   {type: tfidf}
+  visobert:      {type: hf, hf_id: uitnlp/visobert,        family: visobert, lr: 3.0e-5, epochs: 5, batch: 32}
+  visobert_dapt: {type: hf, hf_id: models/visobert-dapt,   family: visobert, lr: 3.0e-5, epochs: 5, batch: 32}
+  phobert:       {type: hf, hf_id: vinai/phobert-base-v2,  family: phobert,  lr: 2.0e-5, epochs: 5, batch: 32}
+  xlmr:          {type: hf, hf_id: xlm-roberta-base,       family: xlmr,     lr: 2.0e-5, epochs: 5, batch: 32}
+learning_curve:
+  conditions: [RAW, FULL]     # thêm điều kiện tốt nhất sau khi có kết quả
+  sizes: [500, 1000, 2000, 4000]
+llm:
+  prompt: configs/prompts/sp_labeling.md
+  prompt_version: v1
+  api:   {provider: anthropic, model: claude-haiku-4-5-20251001}   # kiểm tra tên mô hình hiện hành tại docs.claude.com
+  local: {provider: openai_compatible, base_url: 'http://localhost:11434/v1', model: 'qwen2.5:7b-instruct'}

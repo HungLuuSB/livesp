@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+data/**
+!data/**/.gitkeep
+results/**
+!results/.gitkeep
+models/
+*.log
+# danh sách kênh thật (tên kênh không được công khai); chỉ commit channels.example.csv
+configs/channels.csv
+*.egg-info/
+.ipynb_checkpoints/
+.claude/settings.local.json
+.pytest_cache/
+.ruff_cache/

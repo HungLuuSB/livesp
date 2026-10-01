@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "livesp"
+version = "0.1.0"
+description = "Expressed social presence in Vietnamese livestream commerce chat"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.26", "pandas>=2.1", "scikit-learn>=1.4", "scipy>=1.11", "pyyaml>=6", "pyarrow>=14"]
+
+[project.optional-dependencies]
+capture = ["TikTokLive>=6,<7"]
+gpu = ["torch>=2.3", "transformers>=4.44", "accelerate>=0.33", "sentencepiece", "protobuf"]
+nlp = ["emoji>=2.10", "underthesea>=6.8", "py_vncorenlp>=0.1.4"]
+llm = ["anthropic", "openai"]
+stats = ["statsmodels>=0.14", "matplotlib>=3.8"]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120

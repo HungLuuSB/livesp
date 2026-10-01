@@ -1,0 +1,20 @@
+# Dịch vụ systemd cấp người dùng cho bộ thu thập. Cài:
+#   mkdir -p ~/.config/systemd/user && cp scripts/wsl/livesp-capture.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now livesp-capture
+#   sudo loginctl enable-linger $USER        # chạy cả khi không có phiên đăng nhập
+# Xem log: journalctl --user -u livesp-capture -f
+# Sửa đường dẫn nếu dự án không nằm ở ~/projects/livesp
+[Unit]
+Description=LiveSP capture scheduler
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/projects/livesp
+ExecStart=%h/projects/livesp/.venv/bin/python -m livesp.capture.scheduler --config configs/capture.yaml
+Restart=always
+RestartSec=30
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

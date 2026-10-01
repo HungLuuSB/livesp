@@ -1,0 +1,16 @@
+# Thu thập — sao chép configs/channels.example.csv thành configs/channels.csv rồi điền kênh thật.
+channels_csv: configs/channels.csv
+raw_dir: data/raw
+poll_seconds: 120            # chu kỳ kiểm tra kênh có live không (cũng là sai số tối đa của "ghi từ đầu phiên")
+max_concurrent: 8            # số kết nối đồng thời; tăng dần khi đã chắc máy + dịch vụ ký chịu được
+offline_grace_minutes: 15    # offline quá mốc này thì coi là hết phiên
+store_raw_types: [other]     # ghi payload đã làm sạch cho các sự kiện lạ (để tìm tin hệ thống/mua hàng)
+
+session:
+  gap_minutes: 15            # dự phòng khi thiếu session_hint (dữ liệu cũ của khóa luận)
+
+session_criteria:            # PROPOSAL: tiêu chí một phiên hợp lệ
+  min_duration_min: 30
+  max_disconnected_share: 0.10
+  require_from_start: true
+  # ngưỡng >= 150 bình luận người xem áp dụng SAU khi lọc: configs/filters.yaml -> min_viewer_comments

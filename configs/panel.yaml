@@ -1,0 +1,14 @@
+# Study 2 — ĐÓNG BĂNG (thêm "panel.yaml" vào configs/FROZEN) và đăng ký OSF trước 01/11/2026.
+window_s: 60
+lags: 3
+use_resp: true               # chỉ bật nếu proxy RESP đạt precision >= 0,70 (H3c)
+sp_vars: [share_HOST, share_VIEWER, share_collective, share_AFFECT, share_SELF, resp_share]
+controls: [share_TRANS, share_sent_pos, log_comments, has_comments]
+outcomes: [y_dlog_viewers, y_like, y_share, y_join, y_follow, y_gift]
+multiverse:
+  window_s: [60, 120, 300]
+  lags: [1, 3, 5]
+  seeding: [keep, drop]
+  classifier: [best, second]
+  preprocessing: [best, THESIS]
+  sale_days: [include, exclude]
