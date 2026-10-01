@@ -174,8 +174,9 @@ def render(table: pd.DataFrame, hb: dict | None, now: datetime, stale_min: float
         lines.append(f"Nhịp tim scheduler: {hb_time} ({age / 60:.1f} phút trước) | đang ghi: {active}")
         if stale:
             lines.append(f"CẢNH BÁO: nhịp tim cũ hơn {stale_min:g} phút — máy/WSL đã ngủ hoặc scheduler đã dừng.")
-    if hb and hb.get("quota") is not None:
-        lines.append(f"Phiên hôm nay: {hb.get('sessions_today', 0)}/{hb['quota']}")
+    if hb and "sessions_today" in hb:
+        cap = hb.get("quota")
+        lines.append(f"Phiên hôm nay: {hb['sessions_today']}" + (f"/{cap}" if cap is not None else " (không giới hạn)"))
     if backup is None:
         lines.append("CẢNH BÁO: chưa có bản sao lưu nào (bash scripts/backup_data.sh).")
     else:
